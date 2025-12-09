@@ -5,3 +5,4 @@ imageio
 tqdm
 transformers
 tiktoken
+tensorflow

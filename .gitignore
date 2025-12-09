@@ -2,3 +2,5 @@
 .env
 .__pycache__
 dataset
+gpt2/124M/model.ckpt.data-00000-of-00001
+gpt2/774M/model.ckpt.data-00000-of-00001
