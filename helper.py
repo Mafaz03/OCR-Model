@@ -11,7 +11,8 @@ import json
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
-
+import torch
+import torch.nn.functional as F
 
 def download_and_load_gpt2(model_size, models_dir):
     # Validate model size
@@ -150,3 +151,47 @@ def load_gpt2_params_from_tf_ckpt(ckpt_path, settings):
         target_dict[last_key] = variable_array
 
     return params
+
+
+
+
+
+def text_to_token_ids(texts, tokenizer, device="cpu", max_len = None):
+    # return torch.tensor(tokenizer.encode(text, allowed_special="<|endoftext|>")).unsqueeze(0)
+    if type(texts) == list:
+        encodings = []
+        for text in texts:
+            token_ids = torch.tensor(
+                        tokenizer.encode(
+                                text,
+                                allowed_special={"<|endoftext|>", "<image>"}
+                            ),
+                            
+                    device=device).unsqueeze(0)
+            encodings.append(token_ids)
+
+        if max_len == None:
+            max_len = max(e.numel() for e in encodings)
+        # import pdb;
+        # pdb.set_trace()
+        encodings_cat = torch.cat([
+            F.pad(e, (0, max_len - e.numel()), value=50256)
+            for e in encodings
+        ], dim=0)
+
+
+        return encodings_cat
+    
+    else:
+        return torch.tensor(
+                        tokenizer.encode(
+                                texts,
+                                allowed_special={"<|endoftext|>", "<image>"}
+                            ),
+                    device=device).unsqueeze(0)
+        
+
+def token_ids_to_text(token_ids, tokenizer):
+    flat = token_ids.squeeze(0).cpu()
+    return tokenizer.decode(flat.tolist())
+    
