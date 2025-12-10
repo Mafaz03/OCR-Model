@@ -58,11 +58,11 @@ def vision_pipeline(deep_encoder, deep_decoder, input_ids_batch, image_batch, to
 
 ## losses
 def calc_loss_batch(pipline, deep_encoder, deep_decoder, input_batch, target_batch, image_batch, tokenizer, num_vision_tokens = 273):
-    logits = pipline(deep_encoder = deep_encoder, 
-                     deep_decoder = deep_decoder,
+    logits = pipline(deep_encoder    = deep_encoder, 
+                     deep_decoder    = deep_decoder,
                      input_ids_batch = input_batch,
-                     image_batch = image_batch,
-                     tokenizer = tokenizer)
+                     image_batch     = image_batch,
+                     tokenizer       = tokenizer)
     
     batch_size, seq_len, _ = logits.shape
     # Create aligned targets: [-100 for vision tokens, actual tokens for text]
