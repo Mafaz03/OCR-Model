@@ -4,3 +4,5 @@
 dataset
 gpt2/124M/model.ckpt.data-00000-of-00001
 gpt2/774M/model.ckpt.data-00000-of-00001
+__pycache__
+gpt2/OCR_finetuned/gpt2_774M_finetuned.pth
