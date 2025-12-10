@@ -147,20 +147,34 @@ class GPTModel(torch.nn.Module):
         )
 
         self.final_norm = LayerNorm(cfg["embedding_dim"])
-        self.out_head   = torch.nn.Linear(cfg["embedding_dim"], cfg["vocab_size"], bias = False)
+        self.out_head   = torch.nn.Linear(cfg["embedding_dim"], cfg["vocab_size"], bias=False)
 
-    def forward(self, in_idx, **kwargs):
-        batch_size, seq_length = in_idx.shape
-        toks_embeds = self.token_embedding(in_idx)
-        pos_embeds  = self.position_embedding(torch.arange(0, seq_length, device = in_idx.device))
+        self.proj = torch.nn.Linear(cfg["vision_dim"], cfg["embedding_dim"])
 
-        x = toks_embeds + pos_embeds
+    def forward(self, in_idx=None, inputs_embeds=None):  # CHANGED: Both optional, explicit parameter
+        # CHANGED: Handle both text-only and multimodal paths
+        if inputs_embeds is not None:
+            # Multimodal path: use pre-computed embeddings
+            toks_embeds = inputs_embeds
+            batch_size, seq_length, _ = toks_embeds.shape  # CHANGED: Get dimensions from embeddings
+        else:
+            # Text-only path: convert token indices to embeddings
+            if in_idx is None:
+                raise ValueError("Must provide either in_idx or inputs_embeds")
+            batch_size, seq_length = in_idx.shape
+            toks_embeds = self.token_embedding(in_idx)
+        
+        # CHANGED: Use toks_embeds.device (works for both paths)
+        pos_embeds = self.position_embedding(torch.arange(0, seq_length, device=toks_embeds.device))
+
+        x = self.proj(toks_embeds) + pos_embeds
         x = self.drop_emb(x)
         x = self.transformer_blocks(x)
         x = self.final_norm(x)
         logits = self.out_head(x)
 
         return logits
+    
 
 
 
