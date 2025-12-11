@@ -27,8 +27,10 @@ from pipeline import *
 
 from build import *
 
+import wandb
 
-warnings.filterwarnings("ignore", category=UserWarning)
+import warnings
+warnings.filterwarnings("ignore")
 
 ########################
 ########################
@@ -37,9 +39,35 @@ train_frac = 0.8
 test_frac  = 0.15
 batch_size = 1
 device = "cpu"
+
 num_epochs = 2
 
+lr = 0.00005
+weight_decay = 0.1
+
 load_pretained = False
+
+wandb_logging = True
+
+if wandb_logging:
+    run = wandb.init(
+        entity="mafaz03",
+        project="OCR_deepseek",
+
+        name="logging",
+        
+        config={
+            "learning_rate": lr,
+            "weight_decay" : weight_decay,
+            "train_frac"   : train_frac,
+            "test_frac"    : test_frac,
+            "batch_size"   : batch_size,
+            "num_epochs"   : num_epochs,
+            "device"       : device,
+        },
+    )
+    print("wandb initialized")
+else: run = None
 
 ########################
 ########################
@@ -133,9 +161,10 @@ print("Loading decoder")
 NEW_CONFIG, gpt2 = build_decoder(tokenizer, tokenizer_modified)
 print("Decoder loaded\n")
 
-optimizer = torch.optim.AdamW(gpt2.parameters(), lr=0.00005, weight_decay=0.1)
+optimizer = torch.optim.AdamW(gpt2.parameters(), lr=lr, weight_decay=weight_decay)
 
 if __name__ == "__main__":
+    print("### TRAINING STARTED ###")
     train_losses, val_losses, tokens_seen = train(train_loader   = train_dl,
                                                   val_loader     = val_dl,
                                                   deep_encoder   = deep_encoder,
@@ -151,5 +180,7 @@ if __name__ == "__main__":
                                                   save_itter     = 1,
                                                   save_path      = "gpt2/OCR_finetuned/gpt2_774M_finetuned.pth",
                                                   load_pretained = load_pretained,
-                                                  verbose        = True)
+                                                  verbose        = True,
+                                                  wandb_logging  = wandb_logging,
+                                                  run            = run)
     

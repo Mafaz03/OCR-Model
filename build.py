@@ -69,10 +69,13 @@ def train(train_loader, val_loader,
           optimizer, device, num_epochs, 
           eval_freq, eval_itter, 
           tokenizer, 
+          wandb_logging,
+          run = None,
           verbose = True, max_new_tokens = 50, 
           save_itter = 5, 
           save_path = "gpt2/OCR_finetuned/gpt2_774M_finetuned.pth",
           load_pretained = True,
+          
           ):
     
     train_losses, val_losses, track_tokens_seen = [], [], []
@@ -109,6 +112,7 @@ def train(train_loader, val_loader,
                                    )
             
             loss.backward()
+            if wandb_logging: run.log({"local_loss": loss.item()})
 
             optimizer.step()
             tokens_seen = input_batch.numel()

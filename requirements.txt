@@ -6,3 +6,4 @@ tqdm
 transformers
 tiktoken
 tensorflow
+wandb
