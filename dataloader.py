@@ -43,28 +43,40 @@ class OCR_dataset(Dataset):
 
     def __len__(self):
         return len(self.files)
-
+    
 def ocr_collate(batch):
-
+    """Collate with proper target shifting"""
     input_ids_list, target_ids_list, images_list = zip(*batch)
-
-    max_len = max(x.shape[1] for x in input_ids_list)
+    
+    # Find max length
+    max_len = max(x.shape[1] if x.dim() > 1 else x.shape[0] for x in input_ids_list)
     
     padded_inputs = []
     padded_targets = []
     
     for inp, tgt in zip(input_ids_list, target_ids_list):
+        # Handle both 1D and 2D tensors
+        if inp.dim() == 1:
+            inp = inp.unsqueeze(0)  # [seq_len] → [1, seq_len]
+        if tgt.dim() == 1:
+            tgt = tgt.unsqueeze(0)  # [seq_len] → [1, seq_len]
+        
         seq_len = inp.shape[1]
         pad_amount = max_len - seq_len
         
-        # Pad inputs with <|endoftext|> token (50256)
+        # Pad inputs with <|endoftext|> (50256)
         padded_inp = F.pad(inp, (0, pad_amount), value=50256)
         padded_inputs.append(padded_inp)
         
-        # Pad targets with -100 (ignored in CrossEntropyLoss)
-        padded_tgt = F.pad(tgt, (0, pad_amount), value=-100)
-        padded_targets.append(padded_tgt)
+        # Remove first token, add EOS at end
+        shifted_tgt = torch.cat([
+            tgt[:, 1:],                      # [1, seq_len-1] - remove first token
+            torch.tensor([[50256]])          # [1, 1] - add EOS
+        ], dim=1)
         
+        # Pad targets with -100 (ignored in loss)
+        padded_tgt = F.pad(shifted_tgt, (0, pad_amount), value=-100)
+        padded_targets.append(padded_tgt)
     
     padded_inputs = torch.cat(padded_inputs, dim=0)
     padded_targets = torch.cat(padded_targets, dim=0)
@@ -73,5 +85,5 @@ def ocr_collate(batch):
     return {
         'input_ids': padded_inputs,       # [batch, seq_len]
         'target_ids': padded_targets,     # [batch, seq_len]
-        'images': images                   # [batch, 3, 1024, 1024]
+        'images': images                  # [batch, 3, 1024, 1024]
     }

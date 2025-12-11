@@ -130,3 +130,113 @@ def generate_and_print_samples(model, tokenizer, device, start_context, cfg, max
     print(decoded.replace("\n", " ")) # compacting
     model.train()
 
+
+def generate_text(deep_encoder, gpt2, projector, tokenizer, image, 
+                  prompt="<image>\n", max_new_tokens=50, 
+                  temperature=0.7, top_k=50, device="cpu"):
+    """
+    Generate text from image with temperature and top-k sampling.
+    
+    Args:
+        deep_encoder: SAM+CLIP vision model
+        gpt2: Language model
+        projector: Linear(1280, 768) projection layer
+        tokenizer: Modified tokenizer with <image>
+        image: [3, 1024, 1024] or [1, 3, 1024, 1024] tensor
+        prompt: Starting text with <image> placeholder
+        max_new_tokens: Maximum tokens to generate
+        temperature: Sampling temperature (higher = more random)
+                     - 0.1-0.5: Conservative, focused
+                     - 0.7-0.9: Balanced
+                     - 1.0+: Creative, diverse
+        top_k: Only sample from top k most likely tokens
+        device: 'cpu' or 'cuda'
+    
+    Returns:
+        generated_text: String of generated text
+    """
+    gpt2.eval()
+    deep_encoder.eval()
+    
+    # Ensure image has batch dimension
+    if image.dim() == 3:
+        image = image.unsqueeze(0)  # [1, 3, 1024, 1024]
+    
+    image = image.to(device)
+    
+    # 1. Process image ONCE
+    with torch.no_grad():
+        vision_tokens = deep_encoder(image)           # [1, 273, 1280]
+        # vision_tokens = projector(vision_tokens)      # [1, 273, 768]
+    
+    # 2. Tokenize prompt
+    input_ids = text_to_token_ids(prompt, tokenizer).to(device)  # [1, seq_len]
+    
+    # 3. Get text embeddings
+    text_embeds = gpt2.token_embedding(input_ids)     # [1, seq_len, 768]
+    
+    # 4. Find <image> token and merge
+    image_token_id = tokenizer.encode("<image>", allowed_special={"<image>", "<|endofword|>"})[0]
+    image_pos = torch.where(input_ids[0] == image_token_id)[0]
+    
+    if len(image_pos) == 0:
+        raise ValueError("Prompt must contain <image> token")
+    
+    img_pos = image_pos[0].item()
+    
+    # Merge: text_before + vision + text_after
+    before = text_embeds[0, :img_pos]
+    after = text_embeds[0, img_pos+1:]
+    
+    current_embeds = torch.cat([
+        before.unsqueeze(0),
+        vision_tokens,
+        after.unsqueeze(0)
+    ], dim=1)  # [1, 273+text_len, 768]
+    
+    # 5. Generate tokens with temperature and top-k sampling
+    generated_ids = []
+    eos_token = 50256  # <|endoftext|>
+    
+    with torch.no_grad():
+        for _ in tqdm(range(max_new_tokens), desc = f"Generating samples: {max_new_tokens}"):
+            # Forward pass
+            logits = gpt2(inputs_embeds=current_embeds)  # [1, seq_len, vocab_size]
+            
+            # Get next token logits
+            next_token_logits = logits[0, -1, :]  # [vocab_size]
+            
+            # Apply temperature
+            next_token_logits = next_token_logits / temperature
+            
+            # Top-k filtering
+            if top_k > 0:
+                # Get top-k logits and indices
+                top_k_logits, top_k_indices = torch.topk(next_token_logits, min(top_k, next_token_logits.size(-1)))
+                
+                # Create probability distribution from top-k
+                probs = torch.softmax(top_k_logits, dim=-1)
+                
+                # Sample from top-k distribution
+                sampled_idx = torch.multinomial(probs, num_samples=1)
+                next_token = top_k_indices[sampled_idx]
+            else:
+                # No top-k: sample from full distribution
+                probs = torch.softmax(next_token_logits, dim=-1)
+                next_token = torch.multinomial(probs, num_samples=1)
+            
+            # Stop if EOS token
+            if next_token.item() == eos_token:
+                break
+            
+            generated_ids.append(next_token.item())
+            
+            # Append new token embedding
+            next_embed = gpt2.token_embedding(next_token).unsqueeze(0)  # [1, 1, 768]
+            current_embeds = torch.cat([current_embeds, next_embed], dim=1)
+    
+    # 6. Decode generated tokens
+    generated_text = tokenizer.decode(generated_ids)
+    
+    return generated_text
+
