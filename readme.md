@@ -10,7 +10,7 @@ This repository is an unofficial attempt to recreate the core ideas of **[DeepSe
   <img src="assets/loss.png" alt="Training Loss" width="450">
 </p>
 
-## 🚀 Training
+## Training
 
 To train the model, simply run:
 
