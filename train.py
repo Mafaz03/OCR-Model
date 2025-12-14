@@ -86,7 +86,7 @@ vocab_size = tokenizer_modified.n_vocab
 print("Tokenizer Loaded\n")
 
 print("Loading Dataset")
-files = os.listdir('dataset')[:20]
+files = os.listdir('dataset')
 l = len(files)
 
 # train_frac = 0.8
