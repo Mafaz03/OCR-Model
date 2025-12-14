@@ -10,6 +10,12 @@ This repository is an unofficial attempt to recreate the core ideas of **[DeepSe
   <img src="assets/loss.png" alt="Training Loss" width="450">
 </p>
 
+## Evaluation
+
+<p align="center">
+  <img src="assets/evaluation.png" alt="Training Loss" width="450">
+</p>
+
 ## Training
 
 To train the model, simply run:
