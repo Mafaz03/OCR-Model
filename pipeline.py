@@ -133,7 +133,9 @@ def generate_and_print_samples(model, tokenizer, device, start_context, cfg, max
 
 def generate_text(deep_encoder, gpt2, projector, tokenizer, image, 
                   prompt="<image>\n", max_new_tokens=50, 
-                  temperature=0.7, top_k=50, device="cpu"):
+                  temperature=0.7, top_k=50, device="cpu",
+                  eos_token = 50256  # <|endoftext|>
+                  ):
     """
     Generate text from image with temperature and top-k sampling.
     
@@ -196,7 +198,7 @@ def generate_text(deep_encoder, gpt2, projector, tokenizer, image,
     
     # 5. Generate tokens with temperature and top-k sampling
     generated_ids = []
-    eos_token = 50256  # <|endoftext|>
+    
     
     with torch.no_grad():
         for _ in tqdm(range(max_new_tokens), desc = f"Generating samples: {max_new_tokens}"):
@@ -237,6 +239,6 @@ def generate_text(deep_encoder, gpt2, projector, tokenizer, image,
     
     # 6. Decode generated tokens
     generated_text = tokenizer.decode(generated_ids)
-    
+    gpt2.train()
     return generated_text
 
