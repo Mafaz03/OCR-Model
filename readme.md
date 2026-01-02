@@ -1,3 +1,5 @@
+  [![HitCount](https://hits.dwyl.com/Mafaz03/OCR-Model.svg?style=flat-square)](http://hits.dwyl.com/Mafaz03/OCR-Model)
+
 This repository is an unofficial attempt to recreate the core ideas of **[DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)**.
 
 <p align="center">
